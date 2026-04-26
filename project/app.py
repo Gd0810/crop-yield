@@ -56,6 +56,13 @@ def index():
                            seasons=season_list(),
                            models=["ffmodel", "rnnmodel", "lstmmodel"])
 
+@app.route("/prediction")
+def prediction():
+    return render_template("prediction.html",
+                           states=state_list(),
+                           seasons=season_list(),
+                           models=["ffmodel", "rnnmodel", "lstmmodel"])
+
 @app.route("/api/districts")
 def api_districts():
     state = request.args.get("state", "")

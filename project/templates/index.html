@@ -86,6 +86,21 @@ h1 span { color: var(--wheat); }
   font-size: 1rem;
   font-weight: 300;
 }
+.prediction-btn {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--wheat);
+  color: var(--soil);
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+.prediction-btn:hover {
+  background: var(--mint);
+  transform: translateY(-2px);
+}
 
 /* ── Layout ──────────────────────────────────────────────────────────── */
 .container {
@@ -361,6 +376,7 @@ footer {
   <div class="header-tag">ML · Agricultural Intelligence</div>
   <h1>Crop Yield <span>Predictor</span></h1>
   <p class="subtitle">Forecasting production with RNN, LSTM &amp; FeedForward neural networks</p>
+  <a href="/prediction" class="prediction-btn">Go to Prediction</a>
 </header>
 
 <div class="container">
