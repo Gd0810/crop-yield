@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🌾 Crop Yield Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── Reset & Base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --soil:    #2C1810;
+  --clay:    #7C4D33;
+  --wheat:   #D4A843;
+  --sage:    #4A7C59;
+  --mint:    #7DB990;
+  --straw:   #F5E6C8;
+  --cream:   #FBF5E6;
+  --ink:     #1A120A;
+  --mist:    rgba(255,255,255,0.06);
+  --card-bg: rgba(255,255,255,0.04);
+  --border:  rgba(212,168,67,0.2);
+  --glow:    rgba(212,168,67,0.15);
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--soil);
+  color: var(--straw);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Grain texture overlay ────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0; opacity: 0.5;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+header {
+  position: relative;
+  padding: 3.5rem 2rem 2.5rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(44,24,16,0) 0%, rgba(44,24,16,0.8) 100%);
+  overflow: hidden;
+}
+header::after {
+  content: '🌾';
+  position: absolute;
+  font-size: 18rem;
+  opacity: 0.035;
+  right: -2rem; top: -3rem;
+  pointer-events: none;
+  line-height: 1;
+}
+.header-tag {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--wheat);
+  border: 1px solid var(--border);
+  padding: 0.3rem 0.9rem;
+  border-radius: 100px;
+  margin-bottom: 1.2rem;
+}
+h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--cream);
+  letter-spacing: -0.02em;
+}
+h1 span { color: var(--wheat); }
+.subtitle {
+  margin-top: 0.75rem;
+  color: rgba(245,230,200,0.55);
+  font-size: 1rem;
+  font-weight: 300;
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────── */
+.container {
+  width: 90%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 2.5rem 0 4rem;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .container { grid-template-columns: 1fr; width: 94%; }
+}
+
+/* ── Card ────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  padding: 1.75rem;
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--wheat), transparent);
+}
+
+/* ── Form Styles ─────────────────────────────────────────────────────── */
+.form-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  color: var(--wheat);
+  margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.form-group { margin-bottom: 1.2rem; }
+label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(245,230,200,0.6);
+  margin-bottom: 0.45rem;
+}
+select, input[type="number"] {
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.92rem;
+  padding: 0.7rem 1rem;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  appearance: none;
+  cursor: pointer;
+}
+select:hover, input[type="number"]:hover {
+  border-color: rgba(212,168,67,0.45);
+  background: rgba(255,255,255,0.09);
+}
+select:focus, input[type="number"]:focus {
+  border-color: var(--wheat);
+  background: rgba(212,168,67,0.08);
+  box-shadow: 0 0 0 3px var(--glow);
+}
+select option { background: #3a2010; color: var(--cream); }
+input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+
+.model-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1.4rem;
+}
+.model-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: rgba(245,230,200,0.6);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem;
+  padding: 0.6rem 0.4rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+.model-btn:hover { border-color: var(--wheat); color: var(--wheat); }
+.model-btn.active {
+  background: rgba(212,168,67,0.18);
+  border-color: var(--wheat);
+  color: var(--wheat);
+  font-weight: 500;
+}
+
+.predict-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--wheat), #B8892A);
+  color: var(--soil);
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.9rem;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+.predict-btn::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0);
+  transition: background 0.2s;
+}
+.predict-btn:hover::after { background: rgba(255,255,255,0.12); }
+.predict-btn:active { transform: scale(0.98); }
+.predict-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.spinner {
+  display: none;
+  width: 16px; height: 16px;
+  border: 2px solid rgba(44,24,16,0.3);
+  border-top-color: var(--soil);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Results Panel ───────────────────────────────────────────────────── */
+.results-panel { display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* Stat Cards */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9rem; }
+.stat-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.2rem 1rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.25s, border-color 0.25s;
+  opacity: 0;
+  transform: translateY(16px);
+}
+.stat-card.visible {
+  animation: fadeUp 0.4s ease forwards;
+}
+@keyframes fadeUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+.stat-card:nth-child(2) { animation-delay: 0.08s; }
+.stat-card:nth-child(3) { animation-delay: 0.16s; }
+.stat-card:hover { transform: translateY(-2px); border-color: rgba(212,168,67,0.4); }
+.stat-icon { font-size: 1.6rem; margin-bottom: 0.5rem; }
+.stat-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--wheat);
+  line-height: 1;
+}
+.stat-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(245,230,200,0.5);
+  margin-top: 0.35rem;
+}
+.stat-unit {
+  font-size: 0.75rem;
+  color: rgba(212,168,67,0.6);
+  font-family: 'DM Mono', monospace;
+}
+
+/* Charts */
+.chart-wrap {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.chart-wrap.visible { opacity: 1; }
+.chart-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem;
+  color: var(--wheat);
+  margin-bottom: 1rem;
+}
+canvas { max-height: 260px; }
+
+/* spacing between every result block */
+.stat-grid           { margin-top: 1.75rem; margin-bottom: 1.75rem; }
+#gauge-card          { margin-top: 1.75rem; margin-bottom: 1.75rem; }
+.solo-chart          { margin-top: 1.75rem; margin-bottom: 1.75rem; }
+#summary-chart-wrap  { margin-top: 1.75rem; margin-bottom: 1.75rem; }
+
+/* Yield gauge */
+.gauge-wrap { text-align: center; padding: 0.5rem 0; }
+.gauge-bar-bg {
+  height: 10px; background: rgba(255,255,255,0.08);
+  border-radius: 100px; overflow: hidden; margin: 0.75rem 0;
+}
+.gauge-bar-fill {
+  height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--sage), var(--wheat));
+  border-radius: 100px;
+  transition: width 1s ease;
+}
+.gauge-labels { display: flex; justify-content: space-between; font-size: 0.7rem; color: rgba(245,230,200,0.45); font-family: 'DM Mono', monospace; }
+
+/* Info badges */
+.info-row {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+  font-size: 0.75rem; font-family: 'DM Mono', monospace;
+  color: rgba(245,230,200,0.5);
+}
+.badge {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 0.25rem 0.75rem;
+}
+.badge strong { color: var(--wheat); }
+
+/* Empty state */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 4rem 2rem; text-align: center;
+  gap: 1rem; color: rgba(245,230,200,0.3);
+}
+.empty-state .big-icon { font-size: 4rem; opacity: 0.4; }
+.empty-state p { font-size: 0.9rem; max-width: 260px; }
+
+/* Error */
+.error-box {
+  background: rgba(180,50,30,0.15);
+  border: 1px solid rgba(180,50,30,0.4);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  font-size: 0.87rem;
+  color: #FFAA99;
+  display: none;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+footer {
+  text-align: center;
+  padding: 2rem;
+  font-size: 0.75rem;
+  color: rgba(245,230,200,0.2);
+  border-top: 1px solid var(--border);
+  font-family: 'DM Mono', monospace;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-tag">ML · Agricultural Intelligence</div>
+  <h1>Crop Yield <span>Predictor</span></h1>
+  <p class="subtitle">Forecasting production with RNN, LSTM &amp; FeedForward neural networks</p>
+</header>
+
+<div class="container">
+
+  <!-- ── LEFT: Form ─────────────────────────────────────────────────── -->
+  <div class="card" id="form-card">
+    <div class="form-title">⚙ Configure Prediction</div>
+
+    <div class="form-group">
+      <label>Model</label>
+      <div class="model-selector">
+        <button class="model-btn active" data-model="ffmodel">FeedForward</button>
+        <button class="model-btn" data-model="rnnmodel">RNN</button>
+        <button class="model-btn" data-model="lstmmodel">LSTM</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>State</label>
+      <select id="state-sel">
+        <option value="">— select state —</option>
+        {% for s in states %}
+        <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>District</label>
+      <select id="district-sel" disabled>
+        <option value="">— select state first —</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Season</label>
+      <select id="season-sel">
+        <option value="">— select season —</option>
+        {% for s in seasons %}
+        <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Crop</label>
+      <select id="crop-sel" disabled>
+        <option value="">— select district first —</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Crop Year</label>
+      <input type="number" id="year-input" value="2024" min="1990" max="2035" step="1"/>
+    </div>
+
+    <div class="form-group">
+      <label>Area (hectares)</label>
+      <input type="number" id="area-input" value="10" min="0.1" step="0.1"/>
+    </div>
+
+    <div class="error-box" id="error-box"></div>
+
+    <button class="predict-btn" id="predict-btn" onclick="runPrediction()">
+      <span id="btn-text">Predict Crop Yield</span>
+      <div class="spinner" id="btn-spinner"></div>
+    </button>
+  </div>
+
+  <!-- ── RIGHT: Results ─────────────────────────────────────────────── -->
+  <div class="results-panel" id="results-panel">
+    <div class="empty-state" id="empty-state">
+      <div class="big-icon">🌱</div>
+      <p>Fill in the form and hit <strong>Predict</strong> to see your crop yield forecast.</p>
+    </div>
+
+    <!-- Stat row -->
+    <div style="display:none" id="result-content">
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📈</div>
+          <div class="stat-value" id="stat-yield">—</div>
+          <div class="stat-unit">t / ha</div>
+          <div class="stat-label">Predicted Yield</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🏭</div>
+          <div class="stat-value" id="stat-prod">—</div>
+          <div class="stat-unit">tons</div>
+          <div class="stat-label">Total Production</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🌿</div>
+          <div class="stat-value" id="stat-area">—</div>
+          <div class="stat-unit">ha</div>
+          <div class="stat-label">Area Farmed</div>
+        </div>
+      </div>
+
+      <!-- Yield gauge -->
+      <div class="chart-wrap" id="gauge-card">
+        <div class="chart-title">📊 Yield Range Gauge</div>
+        <div class="gauge-wrap">
+          <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="gauge-fill"></div></div>
+          <div class="gauge-labels"><span id="gauge-lo">0</span><span id="gauge-mid"></span><span id="gauge-hi">—</span></div>
+        </div>
+        <div class="info-row" id="info-row"></div>
+      </div>
+
+      <!-- Chart: Model Comparison (full width row) -->
+      <div class="chart-wrap solo-chart">
+        <div class="chart-title">🔬 Model Comparison (t/ha)</div>
+        <canvas id="compChart"></canvas>
+      </div>
+
+      <!-- Chart: Monthly Distribution (full width row) -->
+      <div class="chart-wrap solo-chart">
+        <div class="chart-title">📅 Monthly Distribution</div>
+        <canvas id="monthChart"></canvas>
+      </div>
+
+      <div class="chart-wrap" id="summary-chart-wrap">
+        <div class="chart-title">📦 Yield vs Production vs Area</div>
+        <canvas id="summaryChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Crop Yield Predictor · FeedForward · RNN · LSTM · Built with Flask + Chart.js</footer>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+let selectedModel = 'ffmodel';
+let charts = {};
+
+// ── Model toggle ───────────────────────────────────────────────────────
+document.querySelectorAll('.model-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedModel = btn.dataset.model;
+  });
+});
+
+// ── Cascading dropdowns ────────────────────────────────────────────────
+document.getElementById('state-sel').addEventListener('change', async function() {
+  const distSel = document.getElementById('district-sel');
+  const cropSel = document.getElementById('crop-sel');
+  distSel.innerHTML = '<option>Loading…</option>';
+  distSel.disabled = true;
+  cropSel.innerHTML = '<option value="">— select district first —</option>';
+  cropSel.disabled = true;
+
+  if (!this.value) return;
+  const res = await fetch(`/api/districts?state=${encodeURIComponent(this.value)}`);
+  const districts = await res.json();
+  distSel.innerHTML = '<option value="">— select district —</option>' +
+    districts.map(d => `<option value="${d}">${d}</option>`).join('');
+  distSel.disabled = false;
+});
+
+document.getElementById('district-sel').addEventListener('change', async function() {
+  const cropSel = document.getElementById('crop-sel');
+  cropSel.innerHTML = '<option>Loading…</option>';
+  cropSel.disabled = true;
+  if (!this.value) return;
+  const res = await fetch(`/api/crops?district=${encodeURIComponent(this.value)}`);
+  const crops = await res.json();
+  cropSel.innerHTML = '<option value="">— select crop —</option>' +
+    crops.map(c => `<option value="${c}">${c}</option>`).join('');
+  cropSel.disabled = false;
+});
+
+// ── Chart helpers ──────────────────────────────────────────────────────
+const C = {
+  wheat:  '#D4A843',
+  sage:   '#4A7C59',
+  mint:   '#7DB990',
+  clay:   '#7C4D33',
+  cream:  '#F5E6C8',
+  muted:  'rgba(245,230,200,0.15)',
+  grid:   'rgba(245,230,200,0.07)',
+};
+const baseFont = { family: "'DM Sans', sans-serif", size: 11, color: 'rgba(245,230,200,0.5)' };
+
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function buildCompChart(comparison) {
+  destroyChart('comp');
+  const labels = Object.keys(comparison).map(k => k.replace('model','').toUpperCase());
+  const values = Object.values(comparison).map(v => v ?? 0);
+  const ctx = document.getElementById('compChart').getContext('2d');
+  charts['comp'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Yield (t/ha)',
+        data: values,
+        backgroundColor: [C.wheat + 'CC', C.sage + 'CC', C.mint + 'CC'],
+        borderColor:     [C.wheat,        C.sage,        C.mint],
+        borderWidth: 1.5,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: C.grid }, ticks: { font: baseFont, color: C.cream } },
+        y: { grid: { color: C.grid }, ticks: { font: baseFont, color: C.cream }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function buildMonthChart(months, yields) {
+  destroyChart('month');
+  const ctx = document.getElementById('monthChart').getContext('2d');
+  charts['month'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: 'Yield (t/ha)',
+        data: yields,
+        borderColor: C.wheat,
+        backgroundColor: C.wheat + '20',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 3,
+        pointBackgroundColor: C.wheat,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: C.grid }, ticks: { font: baseFont, color: C.cream } },
+        y: { grid: { color: C.grid }, ticks: { font: baseFont, color: C.cream }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function buildSummaryChart(yieldVal, production, area) {
+  destroyChart('summary');
+  const ctx = document.getElementById('summaryChart').getContext('2d');
+  charts['summary'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Yield (t/ha)', 'Production (tons)', 'Area (ha)'],
+      datasets: [{
+        data: [yieldVal, production, area],
+        backgroundColor: [C.wheat + 'BB', C.sage + 'BB', C.mint + 'BB'],
+        borderColor:     [C.wheat,        C.sage,        C.mint],
+        borderWidth: 1.5,
+        borderRadius: 8,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: C.grid }, ticks: { font: baseFont, color: C.cream } },
+        y: { grid: { color: C.grid }, ticks: { font: baseFont, color: C.cream } }
+      }
+    }
+  });
+}
+
+// ── Predict ────────────────────────────────────────────────────────────
+async function runPrediction() {
+  const state    = document.getElementById('state-sel').value;
+  const district = document.getElementById('district-sel').value;
+  const season   = document.getElementById('season-sel').value;
+  const crop     = document.getElementById('crop-sel').value;
+  const year     = document.getElementById('year-input').value;
+  const area     = document.getElementById('area-input').value;
+  const errBox   = document.getElementById('error-box');
+
+  errBox.style.display = 'none';
+  if (!state || !district || !season || !crop || !area) {
+    errBox.textContent = 'Please fill in all fields before predicting.';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  // Loading state
+  document.getElementById('btn-text').style.display = 'none';
+  document.getElementById('btn-spinner').style.display = 'block';
+  document.getElementById('predict-btn').disabled = true;
+
+  try {
+    const res = await fetch('/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state, district, season, crop, year, area, model: selectedModel })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderResults(data);
+  } catch (e) {
+    errBox.textContent = `Error: ${e.message}`;
+    errBox.style.display = 'block';
+  } finally {
+    document.getElementById('btn-text').style.display = '';
+    document.getElementById('btn-spinner').style.display = 'none';
+    document.getElementById('predict-btn').disabled = false;
+  }
+}
+
+function renderResults(d) {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('result-content').style.display = 'block';
+
+  // Stat cards
+  document.getElementById('stat-yield').textContent = d.yield.toFixed(2);
+  document.getElementById('stat-prod').textContent  = d.production.toFixed(1);
+  document.getElementById('stat-area').textContent  = d.area.toFixed(1);
+  document.querySelectorAll('.stat-card').forEach((c,i) => {
+    c.classList.remove('visible');
+    setTimeout(() => c.classList.add('visible'), i * 80);
+  });
+
+  // Gauge
+  const pct = ((d.yield - d.lo) / (d.hi - d.lo + 0.0001) * 100).toFixed(1);
+  document.getElementById('gauge-fill').style.width = Math.min(pct, 100) + '%';
+  document.getElementById('gauge-lo').textContent = d.lo;
+  document.getElementById('gauge-mid').textContent = ((d.lo + d.hi) / 2).toFixed(1) + ' t/ha';
+  document.getElementById('gauge-hi').textContent = d.hi;
+  document.getElementById('gauge-card').classList.add('visible');
+
+  // Info badges
+  document.getElementById('info-row').innerHTML = [
+    `<span class="badge">Crop <strong>${d.crop}</strong></span>`,
+    `<span class="badge">State <strong>${d.state}</strong></span>`,
+    `<span class="badge">Season <strong>${d.season}</strong></span>`,
+    `<span class="badge">Year <strong>${d.year}</strong></span>`,
+    `<span class="badge">Model <strong>${d.model.replace('model','').toUpperCase()}</strong></span>`,
+  ].join('');
+
+  // Charts
+  buildCompChart(d.comparison);
+  buildMonthChart(d.months, d.seasonal_yields);
+  buildSummaryChart(d.yield, d.production, d.area);
+  document.querySelectorAll('.chart-wrap, .solo-chart').forEach(w => w.classList.add('visible'));
+
+  // Scroll to results on mobile
+  if (window.innerWidth < 860) {
+    document.getElementById('result-content').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+</script>
+</body>
+</html>
