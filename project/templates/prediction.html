@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🌾 Crop Yield Analysis — India Agriculture Dataset</title>
+<style>
+/* ── Reset ─────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --soil:#16100A;--clay:#2C1810;--wheat:#D4A843;--sage:#4CAF7D;
+  --straw:#F5E6C8;--cream:#FBF5E6;--mist:rgba(255,255,255,0.04);
+  --border:rgba(212,168,67,0.18);--good:#4CAF7D;--mid:#D4A843;--poor:#E07055;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Georgia',serif;background:var(--soil);color:var(--straw);min-height:100vh;overflow-x:hidden}
+button{cursor:pointer;font-family:inherit}
+
+/* ── Site Header ────────────────────────────────────────────────── */
+.site-header{
+  background:linear-gradient(160deg,var(--clay) 0%,var(--soil) 100%);
+  border-bottom:1px solid var(--border);
+  padding:2.2rem 1.5rem 0;
+  position:sticky;top:0;z-index:100;
+}
+.site-header-inner{max-width:1200px;margin:0 auto}
+.site-tag{
+  display:inline-block;font-family:monospace;font-size:0.6rem;letter-spacing:0.2em;
+  text-transform:uppercase;color:var(--wheat);border:1px solid rgba(212,168,67,0.3);
+  padding:0.25rem 0.85rem;border-radius:100px;margin-bottom:0.7rem
+}
+.site-title{font-size:clamp(1.3rem,3vw,2rem);font-weight:700;color:var(--cream);line-height:1.1}
+.site-title span{color:var(--wheat)}
+.site-sub{font-size:0.8rem;color:rgba(245,230,200,0.4);font-family:sans-serif;margin-top:0.3rem;margin-bottom:1rem}
+
+/* ── Tab Bar ────────────────────────────────────────────────────── */
+.tab-bar{display:flex;gap:0;border-bottom:1px solid var(--border);margin-top:0.5rem}
+.tab-btn{
+  background:none;border:none;padding:0.75rem 1.6rem;
+  font-family:'Georgia',serif;font-size:0.88rem;
+  color:rgba(245,230,200,0.38);border-bottom:2px solid transparent;
+  margin-bottom:-1px;transition:all 0.2s;display:flex;align-items:center;gap:0.4rem;
+}
+.tab-btn.active{color:var(--wheat);border-bottom-color:var(--wheat);font-weight:700}
+.tab-btn:hover:not(.active){color:rgba(245,230,200,0.65)}
+.tab-count{
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
+  border-radius:100px;padding:0.05rem 0.45rem;font-size:0.6rem;font-family:monospace;
+  color:rgba(245,230,200,0.35);
+}
+.tab-btn.active .tab-count{background:rgba(212,168,67,0.18);border-color:rgba(212,168,67,0.35);color:var(--wheat)}
+
+/* ── Panels ─────────────────────────────────────────────────────── */
+.panel{display:none;padding:1.75rem 1.5rem 3rem;max-width:1200px;margin:0 auto}
+.panel.active{display:block}
+
+/* ── Category filter pills ──────────────────────────────────────── */
+.filter-row{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center}
+.cat-btn{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(212,168,67,0.15);
+  color:rgba(245,230,200,0.45);font-family:monospace;font-size:0.72rem;
+  padding:0.4rem 1rem;border-radius:100px;transition:all 0.18s;
+}
+.cat-btn:hover{border-color:rgba(212,168,67,0.4);color:rgba(245,230,200,0.75)}
+.cat-btn.active-good{background:rgba(76,175,125,0.14);border-color:#4CAF7D;color:#4CAF7D}
+.cat-btn.active-mid{background:rgba(212,168,67,0.14);border-color:#D4A843;color:#D4A843}
+.cat-btn.active-poor{background:rgba(224,112,85,0.14);border-color:#E07055;color:#E07055}
+.cat-btn.active-all{background:rgba(212,168,67,0.14);border-color:#D4A843;color:#D4A843}
+
+/* ── Panel 1: Predictions Table ─────────────────────────────────── */
+.pred-cards{display:flex;flex-direction:column;gap:0.85rem}
+.pred-card{
+  background:rgba(255,255,255,0.03);border-radius:0.9rem;
+  padding:1.1rem 1.4rem;transition:all 0.2s;
+}
+.pred-card:hover{background:rgba(255,255,255,0.06)}
+.pred-card-top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:0.5rem}
+.pred-cat-pill{
+  border-radius:0.45rem;padding:0.4rem 0.6rem;font-size:0.64rem;
+  font-family:monospace;letter-spacing:0.07em;text-transform:uppercase;white-space:nowrap;
+}
+.pred-crop-name{font-size:1.05rem;font-weight:700;color:var(--cream)}
+.pred-location{font-size:0.74rem;color:rgba(245,230,200,0.42);font-family:monospace;margin-top:0.1rem}
+.pred-yield-val{font-size:1.5rem;font-weight:700;line-height:1}
+.pred-yield-unit{font-size:0.68rem;color:rgba(245,230,200,0.38);margin-left:3px}
+.pred-yield-lbl{font-size:0.62rem;font-family:monospace;color:rgba(245,230,200,0.32);margin-top:2px}
+.gauge-wrap{margin:0.85rem 0 0.6rem}
+.gauge-bg{height:6px;background:rgba(255,255,255,0.07);border-radius:100px;overflow:hidden}
+.gauge-fill{height:100%;border-radius:100px;transition:width 0.8s ease}
+.gauge-labels{display:flex;justify-content:space-between;margin-top:0.28rem;font-size:0.6rem;font-family:monospace;color:rgba(245,230,200,0.28)}
+.pred-stats{display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:0.4rem}
+.pred-stat-label{font-size:0.6rem;font-family:monospace;text-transform:uppercase;letter-spacing:0.1em;color:rgba(245,230,200,0.32)}
+.pred-stat-val{font-size:0.88rem;color:var(--cream);font-weight:600}
+.pred-stat-unit{font-size:0.62rem;color:rgba(245,230,200,0.32);font-weight:400;margin-left:2px}
+.pred-note{
+  margin-top:0.7rem;padding:0.5rem 0.75rem;background:rgba(255,255,255,0.025);
+  border-radius:0.4rem;font-size:0.77rem;font-family:sans-serif;
+  color:rgba(245,230,200,0.45);font-style:italic;
+}
+
+/* ── Panel 2: TN Districts ──────────────────────────────────────── */
+.tn-toolbar{display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1.2rem}
+.district-search{
+  background:rgba(255,255,255,0.06);border:1px solid rgba(212,168,67,0.2);
+  border-radius:0.5rem;color:var(--straw);font-family:sans-serif;font-size:0.85rem;
+  padding:0.5rem 0.9rem;outline:none;width:210px;
+}
+.district-search::placeholder{color:rgba(245,230,200,0.3)}
+.district-count{font-size:0.7rem;font-family:monospace;color:rgba(245,230,200,0.32);margin-left:auto}
+.district-pills{display:flex;flex-wrap:wrap;gap:0.32rem;margin-bottom:1.25rem;max-height:72px;overflow:hidden}
+.dpill{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(212,168,67,0.12);
+  color:rgba(245,230,200,0.42);font-family:monospace;font-size:0.59rem;
+  padding:0.2rem 0.55rem;border-radius:100px;transition:all 0.15s;white-space:nowrap;
+}
+.dpill.active{background:rgba(212,168,67,0.18);border-color:var(--wheat);color:var(--wheat)}
+.district-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:0.82rem}
+.dist-card{
+  border:1px solid var(--border);border-radius:0.9rem;overflow:hidden;
+  background:rgba(255,255,255,0.02);transition:all 0.2s;
+}
+.dist-card.highlighted{border-color:var(--wheat);background:rgba(212,168,67,0.04);box-shadow:0 0 0 2px rgba(212,168,67,0.12)}
+.dist-header{
+  width:100%;background:none;border:none;padding:0.82rem 1rem;
+  display:flex;align-items:center;gap:0.62rem;text-align:left;
+}
+.dist-avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.62rem;font-family:monospace;font-weight:700;
+  color:rgba(245,230,200,0.45);flex-shrink:0;
+}
+.dist-card.highlighted .dist-avatar{background:rgba(212,168,67,0.18);border-color:rgba(212,168,67,0.45);color:var(--wheat)}
+.dist-name{font-size:0.87rem;font-weight:700;color:var(--cream)}
+.dist-card.highlighted .dist-name{color:var(--wheat)}
+.dist-top-crop{font-size:0.62rem;color:rgba(245,230,200,0.32);font-family:monospace;margin-top:2px}
+.dist-dots{display:flex;gap:3px;flex-shrink:0}
+.dist-dot{width:8px;height:8px;border-radius:50%;opacity:0.72}
+.dist-chevron{font-size:0.68rem;color:rgba(245,230,200,0.28);margin-left:4px;flex-shrink:0}
+.dist-body{display:none;padding:0 1rem 1rem;border-top:1px solid rgba(212,168,67,0.1)}
+.dist-body.open{display:block}
+.cat-section{margin-top:0.85rem}
+.cat-section-header{
+  display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;
+  font-size:0.66rem;font-family:monospace;text-transform:uppercase;letter-spacing:0.1em;
+}
+.cat-range{color:rgba(245,230,200,0.28);margin-left:auto}
+.crop-row{
+  display:flex;align-items:center;gap:0.55rem;padding:0.58rem 0.72rem;
+  background:rgba(255,255,255,0.025);border-radius:0.48rem;margin-bottom:0.38rem;
+  border:1px solid transparent;
+}
+.crop-row:last-child{margin-bottom:0}
+.crop-row-name{font-size:0.81rem;font-weight:600;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crop-row-season{font-size:0.6rem;color:rgba(245,230,200,0.35);font-family:monospace;margin-top:1px}
+.mini-bar-bg{height:3px;background:rgba(255,255,255,0.07);border-radius:100px;overflow:hidden;margin-top:3px}
+.mini-bar-fill{height:100%;border-radius:100px}
+.crop-yield{font-size:0.93rem;font-weight:700;line-height:1;flex-shrink:0;text-align:right}
+.crop-yield-unit{font-size:0.57rem;color:rgba(245,230,200,0.28);margin-left:2px}
+.crop-pct{font-size:0.58rem;color:rgba(245,230,200,0.28);font-family:monospace;margin-top:2px}
+
+/* ── Legend badges (header) ─────────────────────────────────────── */
+.legend-badges{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.4rem}
+.legend-badge{
+  background:var(--mist);border-radius:100px;padding:0.28rem 0.7rem;
+  font-size:0.63rem;font-family:monospace;
+  display:flex;align-items:center;gap:0.3rem;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────── */
+.footer{text-align:center;padding:1.5rem 0 2.5rem;font-size:0.6rem;font-family:monospace;color:rgba(245,230,200,0.15);border-top:1px solid var(--border)}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media(max-width:600px){
+  .site-header{padding:1.5rem 1rem 0}
+  .panel{padding:1.2rem 0.9rem 2.5rem}
+  .tab-btn{padding:0.65rem 1rem;font-size:0.8rem}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Site Header ──────────────────────────────────────────────── -->
+<div class="site-header">
+  <div class="site-header-inner">
+    <div class="site-tag">Agriculture In India · Dataset Analysis</div>
+    <div class="site-title">🌾 Crop Yield <span>Dashboard</span></div>
+    <div class="site-sub">246,091 records · Tamil Nadu Districts · All-India Top 15 · yield = production ÷ area</div>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('predictions',this)">
+        🌍 Top 15 Predictions <span class="tab-count">All India</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('districts',this)">
+        🌴 TN Districts Breakdown <span class="tab-count">31 Districts</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PANEL 1: TOP 15 PREDICTIONS                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="panel-predictions" class="panel active">
+
+  <div class="legend-badges">
+    <div class="legend-badge" style="border:1px solid rgba(76,175,125,0.3);color:#4CAF7D">🌿 5 × Good Yield</div>
+    <div class="legend-badge" style="border:1px solid rgba(212,168,67,0.3);color:#D4A843">🌾 5 × Mid-range Yield</div>
+    <div class="legend-badge" style="border:1px solid rgba(224,112,85,0.3);color:#E07055">🍂 5 × Poor Yield</div>
+    <div style="margin-left:auto;font-size:0.65rem;font-family:monospace;color:rgba(245,230,200,0.28);align-self:center">Real combinations from dataset</div>
+  </div>
+
+  <!-- Category filter -->
+  <div class="filter-row" id="pred-filter-row">
+    <button class="cat-btn active-all" onclick="filterPred('All',this)">All 15</button>
+    <button class="cat-btn" onclick="filterPred('Good',this)">🌿 Good</button>
+    <button class="cat-btn" onclick="filterPred('Mid-range',this)">🌾 Mid-range</button>
+    <button class="cat-btn" onclick="filterPred('Poor',this)">🍂 Poor</button>
+  </div>
+
+  <div class="pred-cards" id="pred-cards"></div>
+
+  <div class="footer">Source: Agriculture In India.csv · 246,091 records · yield = production ÷ area</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PANEL 2: TN DISTRICTS                                          -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="panel-districts" class="panel">
+
+  <div class="legend-badges">
+    <div class="legend-badge" style="border:1px solid rgba(76,175,125,0.28);color:#4CAF7D">🌿 Good · ≥65% of crop max</div>
+    <div class="legend-badge" style="border:1px solid rgba(212,168,67,0.28);color:#D4A843">🌾 Mid-range · 30–65%</div>
+    <div class="legend-badge" style="border:1px solid rgba(224,112,85,0.28);color:#E07055">🍂 Poor · &lt;30%</div>
+    <div style="margin-left:auto;font-size:0.65rem;font-family:monospace;color:rgba(245,230,200,0.28);align-self:center">Top 3 crops per category per district</div>
+  </div>
+
+  <div class="tn-toolbar">
+    <input class="district-search" id="dist-search" type="text" placeholder="Search district…" oninput="filterDistricts(this.value)"/>
+    <div class="district-count" id="dist-count">31 of 31 districts</div>
+  </div>
+  <div class="district-pills" id="district-pills"></div>
+  <div class="district-grid" id="district-grid"></div>
+
+  <div class="footer">Source: Agriculture In India.csv · 31 Tamil Nadu districts · min 2 records per crop combination</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════════════════
+
+const PREDICTIONS = [
+  {category:"Good",    state:"Andhra Pradesh", district:"ANANTAPUR",       season:"Whole Year", crop:"Banana",             area:1175.5, yield_tha:51.42,  production:16564,    pct:100,   note:"Exceptionally productive — well above crop ceiling"},
+  {category:"Good",    state:"Tamil Nadu",      district:"VILLUPURAM",      season:"Whole Year", crop:"Sugarcane",          area:53565,  yield_tha:109.67, production:5792019,  pct:100,   note:"Massive scale with peak sugarcane yield"},
+  {category:"Good",    state:"Puducherry",      district:"PONDICHERRY",     season:"Kharif",     crop:"Cotton (lint)",      area:189,    yield_tha:5.01,   production:829,      pct:100,   note:"Near-maximum cotton yield for Kharif season"},
+  {category:"Good",    state:"Madhya Pradesh",  district:"SINGRAULI",       season:"Whole Year", crop:"Onion",              area:435,    yield_tha:57.73,  production:25301,    pct:100,   note:"Very high onion yield — fertile district"},
+  {category:"Good",    state:"Tamil Nadu",      district:"TIRUCHIRAPPALLI", season:"Whole Year", crop:"Tapioca",            area:5496,   yield_tha:45.14,  production:263128,   pct:90.3,  note:"Strong tapioca belt with consistent high output"},
+  {category:"Mid-range",state:"Punjab",         district:"FARIDKOT",        season:"Whole Year", crop:"Sugarcane",          area:2000,   yield_tha:65.0,   production:130000,   pct:65.0,  note:"Solid northern sugarcane production, steady but not peak"},
+  {category:"Mid-range",state:"Madhya Pradesh", district:"BURHANPUR",       season:"Whole Year", crop:"Onion",              area:400,    yield_tha:32.47,  production:12839,    pct:64.9,  note:"Moderate yield — constrained by seasonal conditions"},
+  {category:"Mid-range",state:"Chhattisgarh",   district:"DURG",            season:"Whole Year", crop:"Banana",             area:60,     yield_tha:32.42,  production:1669,     pct:64.8,  note:"Smaller holding with decent but average banana output"},
+  {category:"Mid-range",state:"West Bengal",    district:"BARDHAMAN",       season:"Rabi",       crop:"Potato",             area:56040,  yield_tha:32.27,  production:1888152,  pct:64.5,  note:"Large-scale Rabi potato — reliable mid-tier returns"},
+  {category:"Mid-range",state:"Kerala",         district:"MALAPPURAM",      season:"Whole Year", crop:"Tapioca",            area:6266,   yield_tha:31.88,  production:191441,   pct:63.8,  note:"Traditional tapioca region — average yields"},
+  {category:"Poor",    state:"Kerala",          district:"KASARAGOD",       season:"Whole Year", crop:"Cardamom",           area:368,    yield_tha:0.003,  production:1,        pct:0.005, note:"Extremely low cardamom yield — possible drought or disease"},
+  {category:"Poor",    state:"Chhattisgarh",    district:"JASHPUR",         season:"Rabi",       crop:"Other Rabi Pulses",  area:402.5,  yield_tha:0.051,  production:17.5,     pct:0.10,  note:"Negligible pulse output — poor soil or input conditions"},
+  {category:"Poor",    state:"Rajasthan",       district:"JAISALMER",       season:"Whole Year", crop:"Guar Seed",          area:317544, yield_tha:0.052,  production:17109,    pct:0.10,  note:"Arid desert district — vast area, minimal returns"},
+  {category:"Poor",    state:"Odisha",          district:"NUAPADA",         season:"Rabi",       crop:"Rapeseed & Mustard", area:28,     yield_tha:0.057,  production:1.5,      pct:0.11,  note:"Tiny plot with almost no production recorded"},
+  {category:"Poor",    state:"Rajasthan",       district:"BARMER",          season:"Kharif",     crop:"Sesamum",            area:4120,   yield_tha:0.061,  production:246,      pct:0.12,  note:"Dry Kharif conditions — sesamum severely underperforms"},
+];
+
+const RAW = {"ARIYALUR":{"Good":[{"crop":"Groundnut","season":"Rabi","yield_tha":6.034,"production":19926.5,"area":3299.5,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":110.488,"production":809944.0,"area":7804.0,"pct":100.0},{"crop":"Small millets","season":"Whole Year","yield_tha":2.674,"production":598.0,"area":223.0,"pct":89.1}],"Mid-range":[{"crop":"Ragi","season":"Rabi","yield_tha":3.5,"production":26.5,"area":7.0,"pct":58.3},{"crop":"Groundnut","season":"Kharif","yield_tha":3.19,"production":29390.0,"area":9553.5,"pct":53.2},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.583,"production":283.0,"area":169.5,"pct":52.8}],"Poor":[{"crop":"Cashewnut","season":"Whole Year","yield_tha":0.219,"production":6600.0,"area":30152.0,"pct":4.4},{"crop":"Coriander","season":"Whole Year","yield_tha":0.396,"production":35.0,"area":75.0,"pct":7.9},{"crop":"Castor seed","season":"Whole Year","yield_tha":0.248,"production":7.0,"area":29.5,"pct":8.3}]},"COIMBATORE":{"Good":[{"crop":"Bhindi","season":"Whole Year","yield_tha":10.68,"production":3951.0,"area":364.5,"pct":100.0},{"crop":"Dry ginger","season":"Whole Year","yield_tha":16.0,"production":32.0,"area":2.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":111.23,"production":805913.0,"area":7174.0,"pct":100.0}],"Mid-range":[{"crop":"Sunflower","season":"Whole Year","yield_tha":1.708,"production":443.0,"area":151.5,"pct":56.9},{"crop":"Brinjal","season":"Whole Year","yield_tha":10.753,"production":6297.5,"area":587.0,"pct":53.8},{"crop":"Cotton(lint)","season":"Rabi","yield_tha":2.585,"production":177.0,"area":65.0,"pct":51.7}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.214,"production":3077.0,"area":12702.0,"pct":0.4},{"crop":"Sannhamp","season":"Whole Year","yield_tha":0.9,"production":2.5,"area":3.0,"pct":1.8},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.079,"production":62.0,"area":57.5,"pct":2.2}]},"CUDDALORE":{"Good":[{"crop":"Sugarcane","season":"Whole Year","yield_tha":109.595,"production":3851639.0,"area":33357.5,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":12.49,"production":586.5,"area":64.0,"pct":83.3},{"crop":"Tapioca","season":"Whole Year","yield_tha":37.383,"production":160103.5,"area":4141.5,"pct":74.8}],"Mid-range":[{"crop":"Banana","season":"Whole Year","yield_tha":29.632,"production":104817.0,"area":3975.5,"pct":59.3},{"crop":"Ragi","season":"Rabi","yield_tha":3.541,"production":195.5,"area":52.0,"pct":59.0},{"crop":"Small millets","season":"Whole Year","yield_tha":1.752,"production":3456.0,"area":1864.0,"pct":58.4}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.233,"production":57.0,"area":241.0,"pct":0.5},{"crop":"Sannhamp","season":"Whole Year","yield_tha":0.721,"production":21.0,"area":29.0,"pct":1.4},{"crop":"Varagu","season":"Kharif","yield_tha":1.043,"production":2158.0,"area":2069.0,"pct":2.1}]},"DHARMAPURI":{"Good":[{"crop":"Dry ginger","season":"Whole Year","yield_tha":23.769,"production":213.0,"area":7.0,"pct":100.0},{"crop":"Cabbage","season":"Whole Year","yield_tha":50.818,"production":29316.0,"area":557.0,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.231,"production":667.0,"area":55.0,"pct":94.9}],"Mid-range":[{"crop":"Ragi","season":"Rabi","yield_tha":3.711,"production":23175.0,"area":5949.0,"pct":61.8},{"crop":"Brinjal","season":"Whole Year","yield_tha":11.405,"production":3479.5,"area":376.0,"pct":57.0},{"crop":"Cotton(lint)","season":"Rabi","yield_tha":2.665,"production":4471.0,"area":1657.0,"pct":53.3}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.209,"production":3339.0,"area":15816.0,"pct":0.4},{"crop":"Sannhamp","season":"Whole Year","yield_tha":0.736,"production":160.0,"area":217.0,"pct":1.5},{"crop":"Varagu","season":"Kharif","yield_tha":0.929,"production":140.5,"area":184.0,"pct":1.9}]},"DINDIGUL":{"Good":[{"crop":"Dry ginger","season":"Kharif","yield_tha":20.917,"production":194.0,"area":7.5,"pct":100.0},{"crop":"Cabbage","season":"Whole Year","yield_tha":61.135,"production":1213.0,"area":20.0,"pct":100.0},{"crop":"Pineapple","season":"Whole Year","yield_tha":30.341,"production":1524.5,"area":51.0,"pct":100.0}],"Mid-range":[{"crop":"Groundnut","season":"Rabi","yield_tha":3.822,"production":22855.5,"area":5120.5,"pct":63.7},{"crop":"Banana","season":"Whole Year","yield_tha":30.702,"production":120992.5,"area":3540.5,"pct":61.4},{"crop":"Cotton(lint)","season":"Rabi","yield_tha":3.053,"production":5077.0,"area":1606.0,"pct":61.1}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.205,"production":2839.0,"area":13840.0,"pct":0.4},{"crop":"Varagu","season":"Kharif","yield_tha":1.0,"production":125.0,"area":123.0,"pct":2.0},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.076,"production":2982.5,"area":2772.5,"pct":2.2}]},"ERODE":{"Good":[{"crop":"Dry ginger","season":"Kharif","yield_tha":26.75,"production":60.5,"area":2.5,"pct":100.0},{"crop":"Cabbage","season":"Whole Year","yield_tha":61.106,"production":1185.5,"area":19.5,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":120.715,"production":3526719.0,"area":31384.0,"pct":100.0}],"Mid-range":[{"crop":"Garlic","season":"Whole Year","yield_tha":5.625,"production":190.0,"area":34.0,"pct":56.2},{"crop":"Tobacco","season":"Whole Year","yield_tha":1.585,"production":5083.5,"area":3211.0,"pct":52.8},{"crop":"Sunflower","season":"Kharif","yield_tha":1.48,"production":623.0,"area":474.0,"pct":49.3}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.214,"production":2381.0,"area":11118.0,"pct":0.4},{"crop":"Sannhamp","season":"Whole Year","yield_tha":0.729,"production":1018.0,"area":1397.0,"pct":1.5},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.074,"production":95.0,"area":88.5,"pct":2.1}]},"KANCHIPURAM":{"Good":[{"crop":"Sugarcane","season":"Whole Year","yield_tha":101.619,"production":422030.0,"area":4819.0,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.484,"production":199.0,"area":15.0,"pct":96.6},{"crop":"Bhindi","season":"Whole Year","yield_tha":9.6,"production":3513.0,"area":384.5,"pct":96.0}],"Mid-range":[{"crop":"Brinjal","season":"Whole Year","yield_tha":12.028,"production":5786.5,"area":447.0,"pct":60.1},{"crop":"Groundnut","season":"Whole Year","yield_tha":3.584,"production":73184.0,"area":21641.0,"pct":59.7},{"crop":"Ragi","season":"Rabi","yield_tha":3.538,"production":668.5,"area":174.5,"pct":59.0}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.254,"production":162.0,"area":598.0,"pct":0.5},{"crop":"Sannhamp","season":"Whole Year","yield_tha":0.715,"production":104.5,"area":143.5,"pct":1.4},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.088,"production":42.0,"area":38.5,"pct":2.2}]},"KANNIYAKUMARI":{"Good":[{"crop":"Dry ginger","season":"Kharif","yield_tha":22.95,"production":198.0,"area":12.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":103.5,"production":609.0,"area":6.0,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.375,"production":230.0,"area":16.0,"pct":95.8}],"Mid-range":[{"crop":"Banana","season":"Whole Year","yield_tha":28.774,"production":167336.0,"area":5513.5,"pct":57.5},{"crop":"Tapioca","season":"Whole Year","yield_tha":28.721,"production":212287.0,"area":7653.5,"pct":57.4},{"crop":"Brinjal","season":"Whole Year","yield_tha":9.4,"production":738.0,"area":73.0,"pct":47.0}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.193,"production":50.0,"area":233.0,"pct":0.4},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.082,"production":51.0,"area":47.0,"pct":2.2},{"crop":"Black pepper","season":"Whole Year","yield_tha":0.15,"production":14.5,"area":93.5,"pct":5.0}]},"KARUR":{"Good":[{"crop":"Sweet potato","season":"Whole Year","yield_tha":19.514,"production":1725.0,"area":82.5,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":97.031,"production":628700.0,"area":6629.0,"pct":97.0},{"crop":"Banana","season":"Whole Year","yield_tha":44.227,"production":180522.5,"area":4908.5,"pct":88.5}],"Mid-range":[{"crop":"Garlic","season":"Whole Year","yield_tha":5.895,"production":425.5,"area":72.0,"pct":59.0},{"crop":"Cotton(lint)","season":"Whole Year","yield_tha":2.608,"production":302.0,"area":114.0,"pct":52.2},{"crop":"Groundnut","season":"Rabi","yield_tha":3.042,"production":2919.0,"area":1014.5,"pct":50.7}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.152,"production":112.0,"area":994.0,"pct":0.3},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.077,"production":50.5,"area":47.0,"pct":2.2},{"crop":"Jowar","season":"Kharif","yield_tha":0.372,"production":11062.0,"area":31766.0,"pct":6.2}]},"KRISHNAGIRI":{"Good":[{"crop":"Dry ginger","season":"Kharif","yield_tha":19.5,"production":39.0,"area":2.0,"pct":100.0},{"crop":"Tobacco","season":"Whole Year","yield_tha":4.792,"production":4018.0,"area":2533.5,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.875,"production":74.0,"area":5.5,"pct":99.2}],"Mid-range":[{"crop":"Groundnut","season":"Rabi","yield_tha":3.69,"production":4488.0,"area":1216.0,"pct":61.5},{"crop":"Garlic","season":"Whole Year","yield_tha":6.0,"production":6.0,"area":1.0,"pct":60.0},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.587,"production":169.0,"area":127.0,"pct":52.9}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.215,"production":1101.0,"area":5133.0,"pct":0.4},{"crop":"Sesamum","season":"Kharif","yield_tha":0.136,"production":46.5,"area":344.0,"pct":4.5},{"crop":"Rapeseed &Mustard","season":"Rabi","yield_tha":0.246,"production":94.5,"area":382.0,"pct":4.9}]},"MADURAI":{"Good":[{"crop":"Sugarcane","season":"Whole Year","yield_tha":105.246,"production":494730.0,"area":4944.0,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.815,"production":759.5,"area":50.0,"pct":98.8},{"crop":"Banana","season":"Whole Year","yield_tha":43.345,"production":111876.0,"area":2431.5,"pct":86.7}],"Mid-range":[{"crop":"Ragi","season":"Rabi","yield_tha":3.469,"production":33.0,"area":8.5,"pct":57.8},{"crop":"Bajra","season":"Rabi","yield_tha":3.221,"production":2659.5,"area":865.5,"pct":53.7},{"crop":"Rice","season":"Kharif","yield_tha":3.983,"production":247273.5,"area":63749.5,"pct":39.8}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.174,"production":423.0,"area":2438.0,"pct":0.3},{"crop":"Varagu","season":"Kharif","yield_tha":0.946,"production":344.5,"area":332.5,"pct":1.9},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.076,"production":80.0,"area":74.5,"pct":2.2}]},"NAGAPATTINAM":{"Good":[{"crop":"Mesta","season":"Kharif","yield_tha":4.667,"production":28.0,"area":6.0,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":15.833,"production":28.0,"area":1.5,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":91.966,"production":324542.0,"area":3756.5,"pct":92.0}],"Mid-range":[{"crop":"Groundnut","season":"Rabi","yield_tha":3.555,"production":7793.5,"area":2159.0,"pct":59.2},{"crop":"Tobacco","season":"Whole Year","yield_tha":1.658,"production":537.0,"area":324.5,"pct":55.3},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.429,"production":7.0,"area":4.0,"pct":47.6}],"Poor":[{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.079,"production":74.0,"area":68.5,"pct":2.2},{"crop":"Moong(Green Gram)","season":"Whole Year","yield_tha":0.224,"production":5651.5,"area":30045.5,"pct":5.6},{"crop":"Sesamum","season":"Whole Year","yield_tha":0.19,"production":202.0,"area":1138.5,"pct":6.3}]},"NAMAKKAL":{"Good":[{"crop":"Dry ginger","season":"Whole Year","yield_tha":16.0,"production":596.0,"area":32.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":133.613,"production":1726091.0,"area":14911.0,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":17.4,"production":445.5,"area":22.5,"pct":100.0}],"Mid-range":[{"crop":"Sunflower","season":"Whole Year","yield_tha":1.799,"production":1397.0,"area":736.5,"pct":60.0},{"crop":"Cotton(lint)","season":"Whole Year","yield_tha":2.973,"production":8831.0,"area":3090.0,"pct":59.5},{"crop":"Ragi","season":"Rabi","yield_tha":3.485,"production":202.0,"area":51.0,"pct":58.1}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.201,"production":556.0,"area":2010.0,"pct":0.4},{"crop":"Sannhamp","season":"Whole Year","yield_tha":0.731,"production":425.0,"area":581.0,"pct":1.5},{"crop":"Varagu","season":"Kharif","yield_tha":0.926,"production":175.5,"area":201.5,"pct":1.9}]},"PERAMBALUR":{"Good":[{"crop":"Sweet potato","season":"Whole Year","yield_tha":15.969,"production":201.5,"area":12.5,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":96.575,"production":871980.0,"area":10721.0,"pct":96.6},{"crop":"Banana","season":"Whole Year","yield_tha":43.346,"production":13936.5,"area":290.5,"pct":86.7}],"Mid-range":[{"crop":"Small millets","season":"Whole Year","yield_tha":1.69,"production":417.0,"area":302.5,"pct":56.3},{"crop":"Brinjal","season":"Whole Year","yield_tha":9.402,"production":1394.5,"area":143.5,"pct":47.0},{"crop":"Cotton(lint)","season":"Rabi","yield_tha":2.279,"production":1263.0,"area":527.0,"pct":45.6}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.17,"production":6.0,"area":35.0,"pct":0.3},{"crop":"Varagu","season":"Kharif","yield_tha":1.02,"production":5645.5,"area":5252.0,"pct":2.0},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.077,"production":604.5,"area":561.5,"pct":2.2}]},"PUDUKKOTTAI":{"Good":[{"crop":"Sugarcane","season":"Whole Year","yield_tha":106.911,"production":746534.0,"area":7215.0,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":15.0,"production":30.0,"area":2.0,"pct":100.0},{"crop":"Banana","season":"Whole Year","yield_tha":48.925,"production":173252.0,"area":3519.5,"pct":97.9}],"Mid-range":[{"crop":"Ragi","season":"Rabi","yield_tha":3.5,"production":10.5,"area":3.0,"pct":58.3},{"crop":"Small millets","season":"Whole Year","yield_tha":1.625,"production":24.0,"area":13.0,"pct":54.2},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.592,"production":35.0,"area":19.0,"pct":53.1}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.152,"production":86.0,"area":534.0,"pct":0.3},{"crop":"Varagu","season":"Kharif","yield_tha":0.439,"production":344.0,"area":692.5,"pct":0.9},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.071,"production":94.5,"area":88.5,"pct":2.1}]},"RAMANATHAPURAM":{"Good":[{"crop":"Sugarcane","season":"Whole Year","yield_tha":106.273,"production":44782.5,"area":436.5,"pct":100.0},{"crop":"Banana","season":"Whole Year","yield_tha":43.349,"production":5345.0,"area":115.0,"pct":86.7},{"crop":"Bhindi","season":"Whole Year","yield_tha":7.235,"production":133.5,"area":18.5,"pct":72.4}],"Mid-range":[{"crop":"Cotton(lint)","season":"Rabi","yield_tha":2.649,"production":6501.5,"area":2387.5,"pct":53.0},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.469,"production":106.5,"area":69.5,"pct":49.0},{"crop":"Brinjal","season":"Whole Year","yield_tha":9.409,"production":354.5,"area":39.0,"pct":47.0}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.178,"production":103.0,"area":566.0,"pct":0.4},{"crop":"Varagu","season":"Kharif","yield_tha":0.667,"production":1.0,"area":2.0,"pct":1.3},{"crop":"Coriander","season":"Whole Year","yield_tha":0.263,"production":416.5,"area":1358.5,"pct":5.3}]},"SALEM":{"Good":[{"crop":"Dry ginger","season":"Whole Year","yield_tha":16.0,"production":16.0,"area":1.0,"pct":100.0},{"crop":"Cabbage","season":"Whole Year","yield_tha":61.083,"production":154.0,"area":2.5,"pct":100.0},{"crop":"Pineapple","season":"Whole Year","yield_tha":31.125,"production":233.0,"area":7.5,"pct":100.0}],"Mid-range":[{"crop":"Groundnut","season":"Rabi","yield_tha":3.327,"production":12442.5,"area":3706.5,"pct":55.4},{"crop":"Cotton(lint)","season":"Rabi","yield_tha":2.6,"production":6437.5,"area":2463.0,"pct":52.0},{"crop":"Maize","season":"Rabi","yield_tha":6.975,"production":82120.0,"area":11855.5,"pct":46.5}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.201,"production":2898.0,"area":10342.0,"pct":0.4},{"crop":"Sannhamp","season":"Whole Year","yield_tha":0.729,"production":1258.0,"area":1725.0,"pct":1.5},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.083,"production":66.0,"area":61.0,"pct":2.2}]},"SIVAGANGA":{"Good":[{"crop":"Sweet potato","season":"Whole Year","yield_tha":15.2,"production":62.0,"area":3.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":93.716,"production":493460.0,"area":5238.0,"pct":93.7},{"crop":"Banana","season":"Whole Year","yield_tha":43.345,"production":32234.0,"area":684.0,"pct":86.7}],"Mid-range":[{"crop":"Groundnut","season":"Rabi","yield_tha":3.689,"production":4327.5,"area":1162.5,"pct":61.5},{"crop":"Ragi","season":"Rabi","yield_tha":3.537,"production":244.0,"area":63.5,"pct":59.0},{"crop":"Cotton(lint)","season":"Rabi","yield_tha":2.577,"production":899.5,"area":362.5,"pct":51.5}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.184,"production":102.0,"area":565.0,"pct":0.4},{"crop":"Varagu","season":"Kharif","yield_tha":1.0,"production":2.0,"area":2.0,"pct":2.0},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.07,"production":25.5,"area":24.0,"pct":2.1}]},"THANJAVUR":{"Good":[{"crop":"Dry ginger","season":"Kharif","yield_tha":19.0,"production":19.0,"area":1.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":106.126,"production":1186211.5,"area":11474.5,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.562,"production":23.5,"area":1.5,"pct":97.1}],"Mid-range":[{"crop":"Cotton(lint)","season":"Rabi","yield_tha":3.173,"production":4428.5,"area":1378.5,"pct":63.5},{"crop":"Groundnut","season":"Rabi","yield_tha":3.383,"production":16532.5,"area":5020.5,"pct":56.4},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.59,"production":84.0,"area":63.0,"pct":53.0}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.333,"production":3.0,"area":8.0,"pct":0.7},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.074,"production":39.0,"area":36.0,"pct":2.1},{"crop":"Coriander","season":"Whole Year","yield_tha":0.25,"production":1.1,"area":3.0,"pct":5.0}]},"THE NILGIRIS":{"Good":[{"crop":"Dry ginger","season":"Kharif","yield_tha":22.878,"production":11021.0,"area":488.5,"pct":100.0},{"crop":"Cabbage","season":"Whole Year","yield_tha":66.688,"production":57160.5,"area":857.5,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":106.671,"production":1181.5,"area":10.5,"pct":100.0}],"Mid-range":[{"crop":"Garlic","season":"Whole Year","yield_tha":5.542,"production":679.0,"area":123.0,"pct":55.4},{"crop":"Potato","season":"Whole Year","yield_tha":20.183,"production":38288.0,"area":1756.0,"pct":40.4},{"crop":"Cotton(lint)","season":"Kharif","yield_tha":1.9,"production":12.0,"area":5.0,"pct":38.0}],"Poor":[{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.104,"production":11.0,"area":10.0,"pct":2.2},{"crop":"Wheat","season":"Rabi","yield_tha":0.265,"production":32.0,"area":260.5,"pct":2.7},{"crop":"Coconut","season":"Whole Year","yield_tha":1.266,"production":100.0,"area":79.0,"pct":4.2}]},"THENI":{"Good":[{"crop":"Cabbage","season":"Whole Year","yield_tha":61.129,"production":5878.0,"area":95.5,"pct":100.0},{"crop":"Banana","season":"Whole Year","yield_tha":51.344,"production":178968.5,"area":3902.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":121.768,"production":852350.0,"area":7130.0,"pct":100.0}],"Mid-range":[{"crop":"Groundnut","season":"Rabi","yield_tha":3.69,"production":1534.0,"area":416.5,"pct":61.5},{"crop":"Ragi","season":"Rabi","yield_tha":3.481,"production":161.5,"area":41.0,"pct":58.0},{"crop":"Brinjal","season":"Whole Year","yield_tha":11.547,"production":5114.0,"area":432.5,"pct":57.7}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.173,"production":797.0,"area":4900.0,"pct":0.3},{"crop":"Varagu","season":"Kharif","yield_tha":0.945,"production":117.5,"area":132.0,"pct":1.9},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.077,"production":236.5,"area":219.5,"pct":2.2}]},"THIRUVALLUR":{"Good":[{"crop":"Sugarcane","season":"Whole Year","yield_tha":110.588,"production":741772.0,"area":6545.5,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.486,"production":151.0,"area":10.0,"pct":96.6},{"crop":"Banana","season":"Whole Year","yield_tha":42.737,"production":50963.0,"area":1108.0,"pct":85.5}],"Mid-range":[{"crop":"Groundnut","season":"Whole Year","yield_tha":3.734,"production":56173.0,"area":15605.0,"pct":62.2},{"crop":"Ragi","season":"Rabi","yield_tha":3.535,"production":1843.5,"area":479.5,"pct":58.9},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.46,"production":200.0,"area":155.0,"pct":48.7}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.254,"production":98.0,"area":383.0,"pct":0.5},{"crop":"Sannhamp","season":"Whole Year","yield_tha":0.739,"production":13.5,"area":18.5,"pct":1.5},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.083,"production":20.5,"area":19.0,"pct":2.2}]},"THIRUVARUR":{"Good":[{"crop":"Sugarcane","season":"Whole Year","yield_tha":104.133,"production":188915.5,"area":1799.5,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.75,"production":40.0,"area":2.5,"pct":98.3},{"crop":"Groundnut","season":"Rabi","yield_tha":5.435,"production":20364.5,"area":3733.5,"pct":90.6}],"Mid-range":[{"crop":"Cotton(lint)","season":"Rabi","yield_tha":3.09,"production":6902.0,"area":2465.0,"pct":61.8},{"crop":"Brinjal","season":"Whole Year","yield_tha":9.379,"production":431.0,"area":40.5,"pct":46.9},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.3,"production":4.5,"area":3.0,"pct":43.3}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.333,"production":7.0,"area":19.0,"pct":0.7},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.069,"production":31.0,"area":29.0,"pct":2.1},{"crop":"Moong(Green Gram)","season":"Whole Year","yield_tha":0.242,"production":7434.5,"area":32853.5,"pct":6.0}]},"TIRUCHIRAPPALLI":{"Good":[{"crop":"Mesta","season":"Kharif","yield_tha":4.67,"production":467.0,"area":100.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":102.997,"production":509463.0,"area":4930.5,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.861,"production":449.0,"area":31.5,"pct":99.1}],"Mid-range":[{"crop":"Groundnut","season":"Rabi","yield_tha":3.606,"production":9810.0,"area":2752.5,"pct":60.1},{"crop":"Cotton(lint)","season":"Rabi","yield_tha":2.939,"production":733.0,"area":253.5,"pct":58.8},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.637,"production":3834.0,"area":3066.5,"pct":54.6}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.151,"production":108.0,"area":666.0,"pct":0.3},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.076,"production":1204.5,"area":1120.0,"pct":2.2},{"crop":"Varagu","season":"Kharif","yield_tha":1.267,"production":2900.5,"area":2092.0,"pct":2.5}]},"TIRUNELVELI":{"Good":[{"crop":"Dry ginger","season":"Kharif","yield_tha":26.429,"production":158.0,"area":5.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":99.998,"production":366056.0,"area":4175.0,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.57,"production":396.0,"area":25.0,"pct":97.1}],"Mid-range":[{"crop":"Groundnut","season":"Rabi","yield_tha":3.688,"production":1199.5,"area":324.0,"pct":61.5},{"crop":"Ragi","season":"Rabi","yield_tha":3.551,"production":130.5,"area":41.5,"pct":59.2},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.581,"production":1383.0,"area":880.0,"pct":52.7}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.191,"production":421.0,"area":2195.0,"pct":0.4},{"crop":"Sannhamp","season":"Whole Year","yield_tha":0.706,"production":3.0,"area":4.0,"pct":1.4},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.077,"production":1903.0,"area":1769.5,"pct":2.2}]},"TIRUPPUR":{"Good":[{"crop":"Sugarcane","season":"Whole Year","yield_tha":110.849,"production":743019.0,"area":6703.0,"pct":100.0},{"crop":"Groundnut","season":"Rabi","yield_tha":5.102,"production":7547.0,"area":1373.0,"pct":85.0},{"crop":"Banana","season":"Whole Year","yield_tha":39.579,"production":112400.0,"area":3057.0,"pct":79.2}],"Mid-range":[{"crop":"Sunflower","season":"Kharif","yield_tha":1.8,"production":38.0,"area":35.0,"pct":60.0},{"crop":"Tapioca","season":"Whole Year","yield_tha":29.411,"production":25823.0,"area":878.0,"pct":58.8},{"crop":"Maize","season":"Rabi","yield_tha":8.499,"production":84458.0,"area":9972.0,"pct":56.7}],"Poor":[{"crop":"Moong(Green Gram)","season":"Kharif","yield_tha":0.177,"production":478.0,"area":2697.0,"pct":4.4},{"crop":"Cashewnut","season":"Whole Year","yield_tha":0.286,"production":69.0,"area":239.0,"pct":5.7},{"crop":"Horse-gram","season":"Kharif","yield_tha":0.157,"production":250.0,"area":4985.0,"pct":7.9}]},"TIRUVANNAMALAI":{"Good":[{"crop":"Sweet potato","season":"Whole Year","yield_tha":15.125,"production":353.0,"area":18.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":93.759,"production":2515494.5,"area":27008.0,"pct":93.8},{"crop":"Banana","season":"Whole Year","yield_tha":45.752,"production":127930.0,"area":2714.0,"pct":91.5}],"Mid-range":[{"crop":"Sunflower","season":"Whole Year","yield_tha":1.928,"production":979.5,"area":469.0,"pct":64.3},{"crop":"Bajra","season":"Rabi","yield_tha":3.819,"production":3246.0,"area":814.5,"pct":63.6},{"crop":"Bhindi","season":"Whole Year","yield_tha":6.067,"production":2021.5,"area":335.0,"pct":60.7}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.21,"production":533.0,"area":2534.0,"pct":0.4},{"crop":"Varagu","season":"Kharif","yield_tha":0.939,"production":67.0,"area":60.0,"pct":1.9},{"crop":"Rapeseed &Mustard","season":"Whole Year","yield_tha":0.238,"production":10.0,"area":56.0,"pct":4.8}]},"TUTICORIN":{"Good":[{"crop":"Banana","season":"Whole Year","yield_tha":58.64,"production":605853.5,"area":9673.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":106.615,"production":18678.0,"area":179.5,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.631,"production":357.5,"area":21.0,"pct":97.5}],"Mid-range":[{"crop":"Bhindi","season":"Whole Year","yield_tha":6.466,"production":1242.5,"area":194.0,"pct":64.7},{"crop":"Groundnut","season":"Rabi","yield_tha":3.69,"production":974.5,"area":264.5,"pct":61.5},{"crop":"Ragi","season":"Rabi","yield_tha":2.841,"production":371.0,"area":97.5,"pct":47.3}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.18,"production":136.0,"area":752.0,"pct":0.4},{"crop":"Varagu","season":"Kharif","yield_tha":1.0,"production":2.5,"area":2.5,"pct":2.0},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.074,"production":147.5,"area":137.5,"pct":2.1}]},"VELLORE":{"Good":[{"crop":"Cabbage","season":"Whole Year","yield_tha":61.25,"production":90.5,"area":1.5,"pct":100.0},{"crop":"Pineapple","season":"Whole Year","yield_tha":31.0,"production":31.0,"area":1.0,"pct":100.0},{"crop":"Dry ginger","season":"Whole Year","yield_tha":13.0,"production":23.5,"area":2.5,"pct":100.0}],"Mid-range":[{"crop":"Groundnut","season":"Rabi","yield_tha":3.384,"production":20171.0,"area":5960.5,"pct":56.4},{"crop":"Bhindi","season":"Whole Year","yield_tha":5.52,"production":2390.5,"area":438.0,"pct":55.2},{"crop":"Cotton(lint)","season":"Rabi","yield_tha":2.577,"production":615.0,"area":245.5,"pct":51.5}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.194,"production":963.0,"area":4285.0,"pct":0.4},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.079,"production":66.5,"area":62.0,"pct":2.2},{"crop":"Varagu","season":"Kharif","yield_tha":1.1,"production":34.0,"area":39.0,"pct":2.2}]},"VILLUPURAM":{"Good":[{"crop":"Mesta","season":"Kharif","yield_tha":4.7,"production":47.0,"area":10.0,"pct":100.0},{"crop":"Sugarcane","season":"Whole Year","yield_tha":109.665,"production":5792018.5,"area":53565.0,"pct":100.0},{"crop":"Banana","season":"Whole Year","yield_tha":42.006,"production":41741.5,"area":1147.0,"pct":84.0}],"Mid-range":[{"crop":"Groundnut","season":"Rabi","yield_tha":3.897,"production":67478.5,"area":16867.5,"pct":65.0},{"crop":"Tapioca","season":"Whole Year","yield_tha":30.297,"production":302907.0,"area":11194.5,"pct":60.6},{"crop":"Sunflower","season":"Whole Year","yield_tha":1.707,"production":1115.0,"area":648.5,"pct":56.9}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.241,"production":948.0,"area":3931.0,"pct":0.5},{"crop":"Sannhamp","season":"Whole Year","yield_tha":0.729,"production":2839.5,"area":3895.0,"pct":1.5},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.062,"production":26.5,"area":25.0,"pct":2.1}]},"VIRUDHUNAGAR":{"Good":[{"crop":"Sugarcane","season":"Whole Year","yield_tha":102.845,"production":347387.0,"area":3316.5,"pct":100.0},{"crop":"Sweet potato","season":"Whole Year","yield_tha":14.559,"production":638.0,"area":41.0,"pct":97.1},{"crop":"Banana","season":"Whole Year","yield_tha":43.346,"production":35978.5,"area":814.0,"pct":86.7}],"Mid-range":[{"crop":"Ragi","season":"Rabi","yield_tha":3.536,"production":194.5,"area":52.0,"pct":58.9},{"crop":"Cotton(lint)","season":"Rabi","yield_tha":2.353,"production":12727.0,"area":5398.5,"pct":47.1},{"crop":"Brinjal","season":"Whole Year","yield_tha":9.402,"production":1993.0,"area":215.0,"pct":47.0}],"Poor":[{"crop":"Other Kharif pulses","season":"Kharif","yield_tha":0.178,"production":240.0,"area":1181.0,"pct":0.4},{"crop":"Varagu","season":"Kharif","yield_tha":1.037,"production":250.0,"area":251.5,"pct":2.1},{"crop":"Citrus Fruit","season":"Whole Year","yield_tha":1.077,"production":289.0,"area":268.5,"pct":2.2}]}}
+
+const DISTRICTS = Object.keys(RAW).sort();
+
+const CAT_META = {
+  Good:        {color:"#4CAF7D", bg:"rgba(76,175,125,0.12)", border:"rgba(76,175,125,0.28)", icon:"🌿", label:"Good",      range:"≥65% of max"},
+  "Mid-range": {color:"#D4A843", bg:"rgba(212,168,67,0.12)", border:"rgba(212,168,67,0.28)", icon:"🌾", label:"Mid-range", range:"30–65%"},
+  Poor:        {color:"#E07055", bg:"rgba(224,112,85,0.12)", border:"rgba(224,112,85,0.28)", icon:"🍂", label:"Poor",      range:"<30% of max"},
+};
+
+// ══════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PANEL 1 — PREDICTIONS
+// ══════════════════════════════════════════════════════════════════
+let predFilter = 'All';
+
+function filterPred(cat, btn) {
+  predFilter = cat;
+  document.querySelectorAll('#pred-filter-row .cat-btn').forEach(b => {
+    b.className = 'cat-btn';
+  });
+  btn.classList.add(cat === 'All' ? 'active-all' : cat === 'Good' ? 'active-good' : cat === 'Mid-range' ? 'active-mid' : 'active-poor');
+  renderPred();
+}
+
+function fmt(n) {
+  return n < 0.1 ? n.toFixed(3) : n.toFixed(2);
+}
+
+function renderPred() {
+  const list = predFilter === 'All' ? PREDICTIONS : PREDICTIONS.filter(p => p.category === predFilter);
+  const container = document.getElementById('pred-cards');
+  container.innerHTML = list.map(p => {
+    const m = CAT_META[p.category];
+    const borderColor = m.border;
+    const leftBorder = m.color;
+    return `
+    <div class="pred-card" style="border:1px solid ${borderColor};border-left:4px solid ${leftBorder}">
+      <div class="pred-card-top">
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <div class="pred-cat-pill" style="background:${m.bg};border:1px solid ${m.border};color:${m.color}">
+            ${m.icon} ${p.category}
+          </div>
+          <div>
+            <div class="pred-crop-name">${p.crop}</div>
+            <div class="pred-location">${p.district}, ${p.state} · ${p.season}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="pred-yield-val" style="color:${m.color}">${fmt(p.yield_tha)}<span class="pred-yield-unit">t/ha</span></div>
+          <div class="pred-yield-lbl">yield</div>
+        </div>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge-bg">
+          <div class="gauge-fill" style="width:${Math.max(p.pct,0.5)}%;background:linear-gradient(90deg,${m.color}88,${m.color})"></div>
+        </div>
+        <div class="gauge-labels">
+          <span>0% of crop range</span>
+          <span style="color:${m.color}">${p.pct.toFixed(1)}% of max</span>
+          <span>100%</span>
+        </div>
+      </div>
+      <div class="pred-stats">
+        <div><div class="pred-stat-label">Area</div><div class="pred-stat-val">${p.area.toLocaleString()}<span class="pred-stat-unit">ha</span></div></div>
+        <div><div class="pred-stat-label">Production</div><div class="pred-stat-val">${p.production.toLocaleString()}<span class="pred-stat-unit">tons</span></div></div>
+        <div><div class="pred-stat-label">Yield %</div><div class="pred-stat-val">${p.pct.toFixed(1)}<span class="pred-stat-unit">% of range</span></div></div>
+      </div>
+      <div class="pred-note" style="border-left:2px solid ${m.color}44">${p.note}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PANEL 2 — TN DISTRICTS
+// ══════════════════════════════════════════════════════════════════
+let distQuery = '';
+let openDistricts = new Set();
+
+function filterDistricts(val) {
+  distQuery = val.trim().toUpperCase();
+  document.querySelectorAll('.dpill').forEach(p => {
+    p.classList.toggle('active', p.dataset.d === distQuery);
+  });
+  renderDistricts();
+}
+
+function pillClick(d) {
+  const inp = document.getElementById('dist-search');
+  if (distQuery === d) { distQuery = ''; inp.value = ''; }
+  else { distQuery = d; inp.value = d; }
+  document.querySelectorAll('.dpill').forEach(p => p.classList.toggle('active', p.dataset.d === distQuery));
+  renderDistricts();
+}
+
+function toggleDistrict(name) {
+  if (openDistricts.has(name)) openDistricts.delete(name);
+  else openDistricts.add(name);
+  const body = document.getElementById('db-' + name.replace(/ /g,'_'));
+  const chev = document.getElementById('dc-' + name.replace(/ /g,'_'));
+  if (body) body.classList.toggle('open', openDistricts.has(name));
+  if (chev) chev.textContent = openDistricts.has(name) ? '▲' : '▼';
+}
+
+function renderDistricts() {
+  const filtered = DISTRICTS.filter(d => d.includes(distQuery));
+  document.getElementById('dist-count').textContent = filtered.length + ' of ' + DISTRICTS.length + ' districts';
+
+  const grid = document.getElementById('district-grid');
+  grid.innerHTML = filtered.map(name => {
+    const data = RAW[name];
+    const goodTop = data.Good[0];
+    const id = name.replace(/ /g,'_');
+    const isOpen = openDistricts.has(name);
+    const highlight = distQuery.length >= 3 && name.includes(distQuery);
+    const dotsHtml = ['Good','Mid-range','Poor'].map(c =>
+      `<div class="dist-dot" style="background:${CAT_META[c].color}"></div>`
+    ).join('');
+
+    const catsHtml = ['Good','Mid-range','Poor'].map(cat => {
+      const m = CAT_META[cat];
+      const rowsHtml = data[cat].map(item => {
+        const yf = item.yield_tha < 0.1 ? item.yield_tha.toFixed(3) : item.yield_tha.toFixed(2);
+        return `<div class="crop-row" style="border-color:${m.border}">
+          <div style="flex:1;min-width:0">
+            <div class="crop-row-name">${item.crop}</div>
+            <div class="crop-row-season">${item.season}</div>
+            <div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${Math.max(item.pct,0.4)}%;background:${m.color}"></div></div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div class="crop-yield" style="color:${m.color}">${yf}<span class="crop-yield-unit">t/ha</span></div>
+            <div class="crop-pct">${item.pct.toFixed(1)}%</div>
+          </div>
+        </div>`;
+      }).join('');
+      return `<div class="cat-section">
+        <div class="cat-section-header" style="color:${m.color}">
+          ${m.icon} ${m.label} <span class="cat-range">${m.range}</span>
+        </div>
+        ${rowsHtml}
+      </div>`;
+    }).join('');
+
+    return `
+    <div class="dist-card${highlight?' highlighted':''}" id="dcard-${id}">
+      <button class="dist-header" onclick="toggleDistrict('${name}')">
+        <div class="dist-avatar">${name.slice(0,2)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="dist-name">${name.replace('THE ','The ')}</div>
+          <div class="dist-top-crop">Top: ${goodTop.crop} · ${goodTop.yield_tha.toFixed(1)} t/ha</div>
+        </div>
+        <div class="dist-dots">${dotsHtml}</div>
+        <div class="dist-chevron" id="dc-${id}">${isOpen ? '▲' : '▼'}</div>
+      </button>
+      <div class="dist-body${isOpen?' open':''}" id="db-${id}">
+        ${catsHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Build district pills
+(function() {
+  const pillsEl = document.getElementById('district-pills');
+  pillsEl.innerHTML = DISTRICTS.map(d =>
+    `<button class="dpill" data-d="${d}" onclick="pillClick('${d}')">${d.replace('THE ','The ')}</button>`
+  ).join('');
+})();
+
+// Initial renders
+renderPred();
+renderDistricts();
+</script>
+</body>
+</html>
